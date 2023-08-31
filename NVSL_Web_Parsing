@@ -1,0 +1,44 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+def extract_team_rankings(year):
+    url = f"https://www.mynvsl.com/standings?year={year}"
+    response = requests.get(url)
+
+    print(url)
+
+    if response.status_code != 200:
+        raise Exception(f"Failed to retrieve data for year {year}. Check the URL or try again later.")
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+    division_tables = soup.find_all('table')
+    team_rankings = {}
+    for table in division_tables:
+        rows = table.find_all('tr')
+        headers = [cell.text.strip() for cell in rows[0].find_all('th')]
+        for row in rows[1:]:
+            cells = [cell.text.strip() for cell in row.find_all('td')]
+            team_name = cells[0]
+            data = {header: value for header, value in zip(headers[1:], cells[1:])}
+
+            # If the team is not in the dictionary, create a new entry
+            if team_name not in team_rankings:
+                team_rankings[team_name] = {}
+
+            # Store the data for the corresponding team
+            team_rankings[team_name] = data
+
+    # Create a pandas DataFrame from the extracted data
+    df_team_rankings = pd.DataFrame.from_dict(team_rankings, orient='index')
+
+    # Export the dataframe as a CSV file
+    csv_file_name = f"team_rankings_{year}.csv"
+    df_team_rankings.to_csv(csv_file_name)
+    
+    return df_team_rankings
+
+if __name__ == "__main__":
+    for year in range (2001,2024,1):
+        team_rankings_df = extract_team_rankings(year)
+        print(team_rankings_df)
